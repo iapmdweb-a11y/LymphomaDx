@@ -1,0 +1,1178 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>LymphomaDx — Differential Helper</title>
+<style>
+  :root{
+    --bg:#eef2f7; --card:#ffffff; --ink:#1c2733; --muted:#5c6b7a;
+    --accent:#2563eb; --accent-2:#0ea5e9; --good:#059669; --bad:#dc2626;
+    --warn:#d97706; --line:#e3e9f0;
+  }
+  *{box-sizing:border-box}
+  body{
+    font-family:system-ui,-apple-system,"Segoe UI",Roboto,Helvetica,Arial,sans-serif;
+    margin:0; color:var(--ink); background:var(--bg); line-height:1.45;
+  }
+  header{
+    background:linear-gradient(135deg,var(--accent),var(--accent-2));
+    color:#fff; padding:18px 24px;
+    display:flex; align-items:center; gap:14px;
+  }
+  header img{width:52px;height:52px;object-fit:contain;flex-shrink:0}
+  header div{min-width:0}
+  header h1{margin:0;font-size:1.35rem}
+  header p{margin:4px 0 0;font-size:.85rem;opacity:.9}
+  main{max-width:980px;margin:20px auto;padding:0 16px 40px}
+  .grid{display:grid;grid-template-columns:1fr;gap:16px}
+  @media(min-width:760px){
+    .cols2{display:grid;grid-template-columns:1fr 1fr;gap:16px}
+    .cols3{display:grid;grid-template-columns:1fr 1fr 1fr;gap:16px}
+  }
+  .card{background:var(--card);border:1px solid var(--line);border-radius:12px;padding:16px}
+  .card h2{margin:0 0 10px;font-size:1rem;display:flex;justify-content:space-between;align-items:baseline;gap:8px}
+  .badge{background:var(--accent);color:#fff;border-radius:999px;padding:1px 9px;font-size:.75rem;font-weight:600}
+  .checks{display:grid;grid-template-columns:1fr 1fr;gap:2px 12px}
+  @media(min-width:900px){.checks{grid-template-columns:1fr 1fr 1fr}}
+  .checks label{display:flex;gap:7px;align-items:flex-start;font-size:.85rem;padding:3px 0;cursor:pointer}
+  select{width:100%;min-height:90px;border:1px solid var(--line);border-radius:8px;padding:6px;font-size:.85rem}
+  .btn{
+    display:inline-block;border:none;border-radius:8px;padding:9px 16px;font-size:.9rem;
+    font-weight:600;cursor:pointer;color:#fff;background:var(--accent);margin:4px 6px 0 0;
+  }
+  .btn:hover{filter:brightness(1.08)}
+  .btn.ghost{background:#dbe4f0;color:var(--ink)}
+  .btn.warn{background:var(--bad)}
+  .btn.small{padding:5px 10px;font-size:.78rem;background:#eef2f7;color:var(--ink);font-weight:500}
+  .btn.small.on{background:var(--good);color:#fff}
+  .actions{margin-top:14px;display:flex;flex-wrap:wrap;gap:8px}
+  .note{font-size:.8rem;color:var(--muted)}
+  .resultCard{border:1px solid var(--line);border-left:4px solid var(--accent);border-radius:10px;padding:12px 14px;margin-top:12px;background:#fbfcfe}
+  .resultCard.top{box-shadow:0 2px 10px rgba(37,99,235,.15)}
+  .resultCard.mimic{border-left-color:var(--warn)}
+  .resultHead{display:flex;justify-content:space-between;align-items:baseline;gap:8px;flex-wrap:wrap}
+  .resultHead .nm{font-weight:700;font-size:1rem}
+  .resultHead .pct{font-weight:800;font-size:1.05rem;color:var(--accent)}
+  .desc{font-size:.83rem;color:var(--muted);margin:2px 0 8px}
+  .bar{height:8px;background:#e8edf4;border-radius:999px;overflow:hidden;margin:6px 0 10px}
+  .bar > span{display:block;height:100%;background:var(--accent)}
+  .chips{display:flex;flex-wrap:wrap;gap:6px;margin-top:4px}
+  .chip{font-size:.75rem;border-radius:999px;padding:2px 9px;background:#eef2f7;color:var(--ink)}
+  .chip.good{background:rgba(5,150,105,.12);color:var(--good)}
+  .chip.bad{background:rgba(220,38,38,.12);color:var(--bad)}
+  .chip.warn{background:rgba(217,119,6,.12);color:var(--warn)}
+  .lbl{font-size:.75rem;font-weight:700;letter-spacing:.04em;text-transform:uppercase;color:var(--muted);margin-top:10px}
+  .siteChips{margin-top:8px;display:flex;flex-wrap:wrap;gap:6px}
+  .rankTxt{font-size:.8rem;color:var(--muted)}
+  .empty{padding:16px;text-align:center;color:var(--muted);font-size:.9rem}
+  footer{max-width:980px;margin:0 auto;padding:0 16px 40px;font-size:.75rem;color:var(--muted);text-align:center}
+  .legend{font-size:.75rem;color:var(--muted);margin-top:8px}
+  .row{display:flex;align-items:center;gap:10px;font-size:.85rem;padding:3px 0;border-bottom:1px dashed var(--line)}
+  .row .marker{font-weight:600;white-space:nowrap}
+  .row .marker::after{content:":";color:var(--muted)}
+  .row:last-child{border-bottom:none}
+  .seg{display:inline-flex;border:1px solid var(--line);border-radius:999px;overflow:hidden;flex-shrink:0}
+  .opt{position:relative;cursor:pointer}
+  .opt input{position:absolute;opacity:0;inset:0;cursor:pointer}
+  .opt span{display:block;padding:3px 10px;font-size:.72rem;font-weight:600;color:var(--muted);background:#f4f6f9}
+  .opt input:checked + span{background:var(--accent);color:#fff}
+  .opt.p input:checked + span{background:var(--good);color:#fff}
+  .opt.n input:checked + span{background:var(--bad);color:#fff}
+  .clinGrid{display:grid;grid-template-columns:repeat(auto-fit,minmax(180px,1fr));gap:12px;margin-bottom:8px}
+  .clinGrid select{min-height:auto;font-size:.83rem;padding:6px}
+  .clinSub{font-size:.8rem;font-weight:700;letter-spacing:.04em;text-transform:uppercase;color:var(--muted);margin:12px 0 4px;border-top:1px solid var(--line);padding-top:8px}
+
+  /* --- Mobile readability: single-column checks, wrapping IHC rows --- */
+  @media(max-width:600px){
+    header{padding:12px 14px;gap:10px;flex-wrap:wrap}
+    header img{width:42px;height:42px}
+    header h1{font-size:1.08rem}
+    header p{font-size:.8rem}
+    main{padding:0 12px 30px}
+    .checks{grid-template-columns:1fr}
+    .row{flex-direction:column;align-items:flex-start;gap:4px;padding:7px 0}
+    .row .marker{white-space:normal}
+    .seg{max-width:100%;flex-wrap:wrap}
+    .opt span{padding:4px 8px;font-size:.7rem}
+    .card{padding:12px}
+    .card h2{flex-wrap:wrap}
+    .resultHead{flex-direction:column;align-items:flex-start}
+  }
+</style>
+</head>
+<body>
+<header>
+  <img src="https://cdn1.artcltn.com/storage/25635/a233962a-ffe4-4e35-a0f2-86c48caa4ff2/chatgpt_image_sep_19__2026__06_30_13_am-removebg-preview.png" alt="LymphomaDx icon">
+  <div>
+    <h1>LymphomaDx — Differential Diagnosis Helper</h1>
+    <p>Educational decision support for lymphoma differentials. Not a clinical tool.</p>
+  </div>
+</header>
+
+<main>
+  <section class="card">
+    <h2>Quick-start scenarios <span class="badge">demo data</span></h2>
+    <p class="note">One click prepopulates a realistic profile so you can see the scoring engine run. Scenarios cover WHO 5th-edition (2022) major haematolymphoid tumour categories.</p>
+    <div class="actions" id="scenarios"></div>
+  </section>
+
+  <div class="grid">
+    <section class="card">
+      <h2>Patient &amp; Site</h2>
+      <label class="note" for="age">Age (optional — used for context only)</label>
+      <input type="number" id="age" min="0" max="120" placeholder="e.g. 54" style="width:100%;padding:8px;border:1px solid var(--line);border-radius:8px;margin-bottom:10px;font-size:.9rem">
+      <label class="note">Select site(s) — Ctrl/Cmd+click for multiple</label>
+      <select id="site" multiple size="6"></select>
+    </section>
+
+    <section class="card">
+      <h2>Morphology <span class="badge" id="morphCount">0</span></h2>
+      <div class="checks" id="morph"></div>
+    </section>
+
+    <section class="card">
+      <h2>Immunophenotype (IHC) <span class="badge" id="ihcCount">0 pos</span></h2>
+      <div id="ihc"></div>
+      <p class="legend">Mark each marker Positive or Negative. Untested (default) markers are ignored.</p>
+    </section>
+  </div>
+
+  <section class="card">
+    <h2>Clinical Context</h2>
+    <div class="clinGrid">
+      <div><div class="lbl">Sex</div><div class="seg" id="sexSel"></div></div>
+      <div><div class="lbl">Time course / duration</div><div class="seg" id="tcSel"></div></div>
+      <div><div class="lbl">Ann Arbor stage</div><select id="stageSel"></select></div>
+    </div>
+    <div class="clinSub">Symptoms</div><div class="checks" id="clinSymptoms"></div>
+    <div class="clinSub">Signs</div><div class="checks" id="clinSigns"></div>
+    <div class="clinSub">Context / risk factors</div><div class="checks" id="clinRisk"></div>
+    <div class="clinSub">Laboratory</div><div class="checks" id="clinLab"></div>
+  </section>
+
+  <section class="card">
+    <h2>Molecular Findings <span class="badge" id="molCount">0</span></h2>
+    <div class="checks" id="mol"></div>
+  </section>
+
+  <section class="card">
+    <h2>Special Stains &amp; Cytochemistry <span class="badge" id="stainCount">0</span></h2>
+    <div class="checks" id="stain"></div>
+  </section>
+
+  <div class="actions">
+    <button class="btn" id="run">Run Diagnosis</button>
+    <button class="btn ghost" id="reset">Reset</button>
+  </div>
+
+  <section class="card" id="resultsWrap" style="display:none">
+    <h2>Differential Diagnosis</h2>
+    <div id="results"></div>
+  </section>
+</main>
+
+<footer>Educational demo for teaching lymphoma pathology. Always correlate with histology, flow cytometry, cytogenetics, and a qualified pathologist.</footer>
+
+<script>
+"use strict";
+
+/* =============================== DATA =============================== */
+
+const SITES = [
+  "Lymph Node","Skin","Bone Marrow","Spleen","GI Tract","Mediastinum",
+  "CNS","Thyroid","Orbit","Lung","Liver","Testis","Breast","Bone",
+  "Nasal Cavity","Peripheral Blood"
+];
+
+const MORPH = [
+  {id:"foll_growth",     label:"Back-to-back follicles"},
+  {id:"starry_sky",      label:"Starry-sky pattern"},
+  {id:"small_lympho",    label:"Monotonous small lymphocytes"},
+  {id:"lympho_lesions",  label:"Lymphoepithelial lesions"},
+  {id:"reed_sternberg",  label:"Reed-Sternberg cells"},
+  {id:"hallmark_cells",  label:"Hallmark cells (horseshoe nuclei)"},
+  {id:"popcorn_cells",   label:"Popcorn (LP) cells"},
+  {id:"lacunar_cells",   label:"Lacunar cells"},
+  {id:"hairy_proj",      label:"Hairy projections"},
+  {id:"cerebriform",     label:"Cerebriform nuclei"},
+  {id:"pautrier",        label:"Pautrier microabscesses"},
+  {id:"diffuse_large",   label:"Diffuse sheets of large cells"},
+  {id:"mantle_pattern",  label:"Mantle-zone pattern"},
+  {id:"plasmacytoid",    label:"Plasmacytoid differentiation"},
+  {id:"dutcher",         label:"Dutcher bodies"},
+  {id:"sinusoidal",      label:"Sinusoidal infiltration"},
+  {id:"angiodestruction",label:"Angiocentric / angiodestructive growth"},
+  {id:"necrosis",        label:"Extensive necrosis"},
+  {id:"fibrosis",        label:"Broad fibrous bands"},
+  {id:"eosinophils",     label:"Abundant eosinophils"},
+  {id:"tcell_rich",      label:"T-cell-rich background"},
+  {id:"blastoid",        label:"Blastoid morphology"},
+  {id:"cleaved",         label:"Cells with cleaved nuclei"},
+  {id:"noncleaved",      label:"Cells with non-cleaved (round) nuclei"},
+  {id:"small_cells",     label:"Small cells"},
+  {id:"medium_cells",    label:"Medium-sized cells"},
+  {id:"large_cells",     label:"Large cells"},
+  {id:"mixed_small_large",label:"Mixed small and large cells"},
+  {id:"multinucleated",  label:"Multinucleated cells"},
+  {id:"epithelioid_granulomas",label:"Epithelioid granulomas"},
+  {id:"necrotizing_adenitis",  label:"Karyorrhectic necrotizing lymphadenitis"},
+  {id:"sinus_histio",    label:"Sinus histiocytosis / emperipolesis"},
+  {id:"germinal_polarity",label:"Preserved germinal-center polarity"},
+  {id:"hyaline_follicles",label:"Hyaline-vascular follicles"},
+  {id:"plasma_cells_dense",label:"Dense plasma-cell infiltrate"},
+  {id:"immunoblasts_mixed",label:"Mixed immunoblastic proliferation"},
+  {id:"spindle_cells",   label:"Spindle-cell proliferation"},
+  {id:"cb_0_5",     label:"FL grade: 0\u20135 centroblasts / HPF"},
+  {id:"cb_6_15",    label:"FL grade: 6\u201315 centroblasts / HPF"},
+  {id:"cb_gt15",    label:"FL grade: \u003e15 centroblasts / HPF"},
+  {id:"solid_sheets",label:"Solid sheets of large cells (no residual follicles)"},
+  {id:"pleomorphic", label:"Pleomorphic / blastoid large cells"}
+];
+
+const IHC = [
+  {id:"cd20",        label:"CD20"},
+  {id:"cd79a",       label:"CD79a"},
+  {id:"cd3",         label:"CD3"},
+  {id:"cd5",         label:"CD5"},
+  {id:"cd10",        label:"CD10"},
+  {id:"bcl6",        label:"BCL6"},
+  {id:"bcl2",        label:"BCL2"},
+  {id:"cyclind1",    label:"Cyclin D1"},
+  {id:"sox11",       label:"SOX11"},
+  {id:"cd23",        label:"CD23"},
+  {id:"lef1",        label:"LEF1"},
+  {id:"cd30",        label:"CD30"},
+  {id:"cd15",        label:"CD15"},
+  {id:"alk",         label:"ALK"},
+  {id:"mum1",        label:"MUM1"},
+  {id:"ebv",         label:"EBER"},
+  {id:"cd138",       label:"CD138"},
+  {id:"cd56",        label:"CD56"},
+  {id:"cd103",       label:"CD103"},
+  {id:"annexin",     label:"Annexin A1"},
+  {id:"tdt",         label:"TdT"},
+  {id:"ki67",        label:"Ki-67 &gt;95%"},
+  {id:"tia1",        label:"TIA1 (cytotoxic)"},
+  {id:"granzyme_b",  label:"Granzyme B (cytotoxic)"},
+  {id:"cd25",        label:"CD25"},
+  {id:"cd4",         label:"CD4"},
+  {id:"cd8",         label:"CD8"},
+  {id:"cd1a",        label:"CD1a"},
+  {id:"langerin",    label:"Langerin (CD207)"},
+  {id:"s100",        label:"S100"},
+  {id:"pax5",        label:"PAX5"},
+  {id:"cd45",        label:"CD45 (LCA)"},
+  {id:"cd43",        label:"CD43"},
+  {id:"cd117",       label:"CD117 (KIT)"},
+  {id:"cd34",        label:"CD34"},
+  {id:"cd99",        label:"CD99"},
+  {id:"pd1",         label:"PD-1"},
+  {id:"cxcl13",      label:"CXCL13 (TFH)"},
+  {id:"cmyc",        label:"MYC (IHC, &gt;40% cells)"},
+  {id:"ki67_high",   label:"Ki-67 high (40\u201390%)"},
+  {id:"p53ihc",      label:"p53 (protein overexpression)"},
+  {id:"ema",         label:"EMA"}
+];
+
+const STAINS = [
+  {id:"dba44",    label:"DBA.44"},
+  {id:"trap",     label:"TRAP (tartrate-resistant acid phosphatase)"},
+  {id:"mpo",      label:"MPO (myeloperoxidase)"},
+  {id:"reticulin",label:"Reticulin fibrosis"},
+  {id:"pas",      label:"PAS (block-positive)"},
+  {id:"congo_red",label:"Congo red (amyloid)"},
+  {id:"tryp",     label:"Tryptase (mast cells)"},
+  {id:"giemsa",   label:"Giemsa metachromasia"}
+];
+
+const MOL = [
+  {id:"myc_r",   label:"MYC rearrangement (t(8;14) etc.)"},
+  {id:"bcl2_r",  label:"BCL2 rearrangement (t(14;18))"},
+  {id:"bcl6_r",  label:"BCL6 rearrangement (t(3;14) etc.)"},
+  {id:"ccnd1_r", label:"CCND1|IGH fusion (t(11;14))"},
+  {id:"malt1_r", label:"MALT1 rearrangement (t(11;18) etc.)"},
+  {id:"alk_r",   label:"ALK rearrangement (t(2;5))"},
+  {id:"braf",    label:"BRAF V600E"},
+  {id:"myd88",   label:"MYD88 L265P"},
+  {id:"notch1",  label:"NOTCH1 mutation"},
+  {id:"idh2",    label:"IDH2 R172 mutation"},
+  {id:"tp53",    label:"TP53 mutation / deletion"},
+  {id:"dusp22",  label:"DUSP22 rearrangement"},
+  {id:"tp63_r",  label:"TP63 rearrangement"},
+  {id:"ezh2",    label:"EZH2 mutation"},
+  {id:"rhoa",    label:"RHOA G17V mutation"},
+  {id:"tet2",    label:"TET2 mutation"},
+  {id:"kit_m",   label:"KIT D816V mutation"},
+  {id:"trisomy12",label:"Trisomy 12 (CLL)"},
+  {id:"ighv",    label:"IGHV unmutated (CLL)"}
+];
+
+/* ======================= CLINICAL CONTEXT DATA ======================= */
+
+const CLIN_SYMPTOMS = [
+  {id:"bx_fever",       label:"Fever &gt;38\u00b0C (B symptom)"},
+  {id:"bx_sweats",      label:"Drenching night sweats (B symptom)"},
+  {id:"bx_weightloss",  label:"Unexplained weight loss &gt;10% (B symptom)"},
+  {id:"sx_pruritus",    label:"Pruritus"},
+  {id:"sx_fatigue",     label:"Fatigue / malaise"},
+  {id:"sx_asymptomatic",label:"Asymptomatic / incidental finding"}
+];
+
+const CLIN_SIGNS = [
+  {id:"sg_genLN",        label:"Generalized lymphadenopathy"},
+  {id:"sg_splenomegaly", label:"Splenomegaly"},
+  {id:"sg_hepatomegaly", label:"Hepatomegaly"},
+  {id:"sg_skin",         label:"Skin plaques / nodules / erythroderma"},
+  {id:"sg_mediastinal",  label:"Mediastinal mass"},
+  {id:"sg_bone",         label:"Lytic bone lesions"},
+  {id:"sg_nasal",        label:"Nasal mass / obstruction / midline destruction"},
+  {id:"sg_testicular",   label:"Testicular mass"},
+  {id:"sg_orbital",      label:"Orbital / periorbital mass"},
+  {id:"sg_gi",           label:"GI mass / bleeding / perforation"}
+];
+
+const CLIN_TC = [
+  {id:"tc_incidental", label:"Incidental / chronic (&gt;6 months)"},
+  {id:"tc_waxing",     label:"Waxing-waning"},
+  {id:"tc_progressive",label:"Progressive (weeks\u2013months)"},
+  {id:"tc_rapid",      label:"Rapid (days\u2013weeks)"}
+];
+
+const CLIN_RISK = [
+  {id:"rc_hiv",      label:"HIV / immunocompromised"},
+  {id:"rc_transplant",label:"Post-transplant"},
+  {id:"rc_autoimmune",label:"Autoimmune disease (Sj\u00f6gren / RA / SLE / thyroiditis)"},
+  {id:"rc_ebv",      label:"Recent / infectious EBV"},
+  {id:"rc_hpylori",  label:"Helicobacter pylori gastritis"},
+  {id:"rc_celiac",   label:"Celiac disease / enteropathy"},
+  {id:"rc_cll",      label:"Known CLL (Richter conversion)"}
+];
+
+const CLIN_LAB = [
+  {id:"lb_lymphocytosis", label:"Peripheral lymphocytosis"},
+  {id:"lb_leukocytosis",  label:"Leukocytosis"},
+  {id:"lb_anemia",        label:"Anemia"},
+  {id:"lb_thrombocytopenia",label:"Thrombocytopenia"},
+  {id:"lb_pancytopenia",  label:"Pancytopenia"},
+  {id:"lb_neutropenia",   label:"Neutropenia"},
+  {id:"lb_ldh",           label:"Elevated LDH"},
+  {id:"lb_hypergamma",    label:"Hypergammaglobulinemia / rouleaux"},
+  {id:"lb_mprotein",      label:"Serum M-protein / paraprotein"},
+  {id:"lb_esr",           label:"Elevated ESR / CRP"},
+  {id:"lb_eosinophilia",  label:"Eosinophilia"}
+];
+
+const CLIN_IDS = new Set(
+  CLIN_SYMPTOMS.concat(CLIN_SIGNS, CLIN_TC, CLIN_RISK, CLIN_LAB).map(f => f.id)
+);
+
+/* Mild sex predilection nudges (score only, small weight). */
+const SEX_BIAS = {
+  "Extranodal NK/T-Cell Lymphoma": "m",
+  "Mycosis Fungoides": "m",
+  "Hairy Cell Leukemia": "m",
+  "Mantle Cell Lymphoma": "m",
+  "Anaplastic Large Cell Lymphoma, ALK+": "m",
+  "Nodular Lymphocyte-Predominant Hodgkin (NLPHL)": "m",
+  "Follicular Lymphoma": "f"
+};
+
+/* Clinical-context rules: support = findings that raise the score,
+   conflict = findings that argue against and get penalized. */
+const CLINICAL_RULES = {
+  "Follicular Lymphoma": { support:["sg_genLN","sx_asymptomatic","tc_incidental","tc_waxing"], conflict:["bx_fever","bx_sweats","bx_weightloss","tc_rapid"] },
+  "CLL / Small Lymphocytic Lymphoma": { support:["sg_genLN","sg_splenomegaly","lb_lymphocytosis","sx_asymptomatic","tc_incidental","tc_waxing"], conflict:["bx_weightloss","tc_rapid"] },
+  "Mantle Cell Lymphoma": { support:["tc_progressive","sg_gi","sg_splenomegaly","sg_genLN"], conflict:["sx_asymptomatic","tc_incidental","sx_fatigue"] },
+  "Marginal Zone / MALT Lymphoma": { support:["sg_gi","sg_orbital","rc_hpylori","rc_autoimmune","tc_waxing","tc_incidental"], conflict:["tc_rapid","bx_weightloss"] },
+  "Lymphoplasmacytic Lymphoma": { support:["lb_mprotein","lb_hypergamma","lb_anemia","sx_fatigue","tc_incidental"], conflict:["tc_rapid"] },
+  "Hairy Cell Leukemia": { support:["sg_splenomegaly","lb_pancytopenia","sx_fatigue","tc_incidental","tc_waxing"], conflict:["tc_rapid","sg_genLN"] },
+  "Diffuse Large B-Cell Lymphoma (DLBCL)": { support:["bx_fever","bx_sweats","bx_weightloss","lb_ldh","tc_progressive","tc_rapid","rc_hiv","rc_transplant","rc_autoimmune","rc_cll"], conflict:["sx_asymptomatic","tc_incidental","lb_mprotein"] },
+  "High-Grade B-Cell Lymphoma (DH/TH)": { support:["bx_fever","bx_sweats","bx_weightloss","lb_ldh","tc_rapid","rc_hiv"], conflict:["sx_asymptomatic","tc_incidental"] },
+  "Burkitt Lymphoma": { support:["bx_fever","bx_sweats","bx_weightloss","lb_ldh","tc_rapid","rc_hiv","rc_ebv","sg_gi"], conflict:["sx_asymptomatic","tc_incidental"] },
+  "Lymphoblastic Lymphoma (ALL/LBL)": { support:["sg_mediastinal","lb_leukocytosis","tc_rapid","bx_fever"], conflict:["sx_asymptomatic","tc_incidental"] },
+  "Peripheral T-Cell Lymphoma, NOS": { support:["sg_skin","bx_fever","bx_sweats","tc_progressive"], conflict:["sx_asymptomatic","tc_incidental"] },
+  "Angioimmunoblastic T-Cell Lymphoma (AITL)": { support:["bx_fever","bx_sweats","bx_weightloss","sg_genLN","sg_skin","sg_hepatomegaly","sg_splenomegaly"], conflict:["sx_asymptomatic"] },
+  "Anaplastic Large Cell Lymphoma, ALK+": { support:["bx_fever","bx_sweats","lb_ldh","tc_progressive","sg_skin"], conflict:["sx_asymptomatic","tc_incidental"] },
+  "Extranodal NK/T-Cell Lymphoma": { support:["sg_nasal","sg_skin","rc_ebv","bx_fever","tc_progressive"], conflict:["sx_asymptomatic","tc_incidental"] },
+  "Mycosis Fungoides": { support:["sg_skin","sx_pruritus","tc_waxing","tc_incidental","sx_asymptomatic"], conflict:["tc_rapid"] },
+  "Nodular Lymphocyte-Predominant Hodgkin (NLPHL)": { support:["sg_genLN","sx_asymptomatic","tc_waxing"], conflict:["bx_weightloss","tc_rapid"] },
+  "Classical Hodgkin Lymphoma": { support:["bx_fever","bx_sweats","bx_weightloss","sx_pruritus","sg_mediastinal","sg_genLN","lb_esr","rc_ebv"], conflict:["sx_asymptomatic","tc_incidental","lb_mprotein"] },
+
+  "Reactive Follicular Hyperplasia": { support:["sx_asymptomatic","tc_incidental","sg_genLN"], conflict:["bx_weightloss","tc_rapid"] },
+  "Infectious Mononucleosis (EBV)": { support:["bx_fever","rc_ebv","sg_genLN","tc_progressive"], conflict:["sx_asymptomatic","tc_incidental"] },
+  "Kikuchi-Fujimoto Disease": { support:["bx_fever","tc_progressive"], conflict:["sx_asymptomatic","sg_gi","sg_orbital"] },
+  "Rosai-Dorfman Disease": { support:["sg_genLN","tc_incidental","tc_waxing"], conflict:["bx_weightloss","tc_rapid"] },
+  "Castleman Disease (hyaline-vascular)": { support:["sx_asymptomatic","tc_incidental","sg_mediastinal"], conflict:["bx_weightloss","tc_rapid","rc_hiv"] },
+  "Sarcoidosis": { support:["sg_mediastinal","sg_genLN","sx_fatigue","tc_incidental","tc_waxing","lb_hypergamma"], conflict:["tc_rapid","bx_sweats"] },
+  "Tuberculous Lymphadenitis": { support:["bx_fever","bx_sweats","bx_weightloss","rc_hiv","tc_progressive","lb_esr"], conflict:["sx_asymptomatic","tc_incidental"] },
+  "IgG4-Related Disease": { support:["sg_orbital","rc_autoimmune","lb_hypergamma","tc_incidental","tc_waxing"], conflict:["tc_rapid"] },
+  "Lymphocytoma Cutis (pseudolymphoma)": { support:["sg_skin","tc_incidental","sx_asymptomatic"], conflict:["tc_rapid","bx_sweats"] },
+  "Plasma Cell Myeloma / MGUS": { support:["lb_mprotein","lb_hypergamma","sg_bone","lb_anemia","lb_ldh","tc_progressive"], conflict:["tc_rapid","sg_gi"] },
+  "Systemic Mastocytosis": { support:["sg_splenomegaly","sg_bone","sg_skin","tc_incidental","tc_waxing"], conflict:["tc_rapid"] },
+  "Thymoma": { support:["sg_mediastinal","sx_asymptomatic","tc_incidental","rc_autoimmune"], conflict:["tc_rapid","bx_sweats"] },
+  "Granulomatosis with Polyangiitis (Wegener's)": { support:["sg_nasal","tc_progressive","lb_esr"], conflict:["sx_asymptomatic","tc_incidental"] },
+  "Langerhans Cell Histiocytosis": { support:["sg_bone","sg_skin","lb_eosinophilia","tc_progressive"], conflict:["sx_asymptomatic"] },
+  "Hashimoto Thyroiditis": { support:["rc_autoimmune","sx_asymptomatic","tc_incidental","lb_hypergamma"], conflict:["tc_rapid","bx_sweats"] },
+  "Lymphocytic (Reactive) Hepatitis": { support:["sx_asymptomatic","tc_incidental","tc_waxing"], conflict:["tc_rapid","bx_weightloss","sg_genLN"] }
+};
+
+/* ===================== CALCULATED GRADES (per entity) =====================
+   Each entry defines the set of variables that determine the entity's grade.
+   compute(v): v[id] is true if the feature is selected. Return null when the
+   data is insufficient, else { label, shift } where shift is a small score nudge
+   (e.g. FL 3B behaves like an aggressive lymphoma). */
+
+const GRADE_SETS = {
+  "Follicular Lymphoma": {
+    vars:["cb_0_5","cb_6_15","cb_gt15","solid_sheets"],
+    compute(v){
+      if (!(v.cb_0_5 || v.cb_6_15 || v.cb_gt15)) return null;
+      if (v.cb_0_5)  return { label:"Grade 1 (0\u20135 centroblasts / HPF)", shift:0 };
+      if (v.cb_6_15) return { label:"Grade 2 (6\u201315 centroblasts / HPF)", shift:0 };
+      if (v.solid_sheets) return { label:"Grade 3B (\u003e15 centroblasts / HPF, diffuse sheets)", shift:1.5 };
+      return { label:"Grade 3A (\u003e15 centroblasts / HPF)", shift:1 };
+    }
+  },
+  "Mantle Cell Lymphoma": {
+    vars:["blastoid","pleomorphic"],
+    compute(v){
+      if (!(v.blastoid || v.pleomorphic)) return null;
+      const kind = v.blastoid && v.pleomorphic ? "Blastoid / pleomorphic" : v.blastoid ? "Blastoid" : "Pleomorphic";
+      return { label:kind + " variant (aggressive MCL)", shift:1 };
+    }
+  }
+};
+
+/* essential = strong evidence (weight 2), supportive = weight 1,
+   conflict  = feature that argues strongly AGAINST if present (penalty) */
+
+const CONDITIONS = [
+  { name:"Follicular Lymphoma",
+    group:"Mature B-cell",
+    sites:["Lymph Node","Bone Marrow","Spleen"],
+    essential:["foll_growth","cd10","bcl6"],
+    supportive:["bcl2","cd20","pax5","cd45","cleaved","small_cells"],
+    conflict:["cd5","cyclind1","sox11","cd43","cmyc"],
+    molecular_support:["bcl2_r","ezh2"],
+    molecular_conflict:["myc_r","ccnd1_r"],
+    desc:"Germinal-center-derived low-grade B-cell lymphoma." },
+  { name:"CLL / Small Lymphocytic Lymphoma",
+    group:"Mature B-cell",
+    sites:["Lymph Node","Bone Marrow","Spleen","Peripheral Blood"],
+    essential:["small_lympho","cd5","cd23"],
+    supportive:["cd20","lef1","bcl2","cd25","cd43","pax5","cd45","small_cells"],
+    conflict:["cyclind1","sox11","cd10","tdt"],
+    molecular_support:["notch1","trisomy12","ighv"],
+    molecular_conflict:["ccnd1_r","braf"],
+    desc:"Indolent CD5+/CD23+ small B-cell neoplasm." },
+  { name:"Mantle Cell Lymphoma",
+    group:"Mature B-cell",
+    sites:["Lymph Node","Bone Marrow","Spleen","Peripheral Blood","GI Tract"],
+    essential:["cyclind1","sox11"],
+    supportive:["small_lympho","mantle_pattern","cd5","cd20","cd43","pax5","cd45","small_cells","medium_cells"],
+    conflict:["cd23","cd10","tdt"],
+    molecular_support:["ccnd1_r"],
+    molecular_conflict:["bcl2_r","malt1_r","braf","myd88"],
+    desc:"CD5+ B-cell lymphoma defined by t(11;14)/Cyclin D1." },
+  { name:"Marginal Zone / MALT Lymphoma",
+    group:"Mature B-cell",
+    sites:["any"],
+    essential:["lympho_lesions"],
+    supportive:["small_lympho","plasmacytoid","dutcher","cd20","pax5","small_cells"],
+    conflict:["cd5","cd10","cyclind1","cd23","tdt"],
+    molecular_support:["malt1_r"],
+    molecular_conflict:["ccnd1_r","bcl2_r"],
+    desc:"Extranodal low-grade B-cell lymphoma with lymphoepithelial lesions." },
+  { name:"Lymphoplasmacytic Lymphoma",
+    group:"Mature B-cell",
+    sites:["Bone Marrow","Peripheral Blood","Lymph Node"],
+    essential:["plasmacytoid"],
+    supportive:["dutcher","cd20","pax5","cd45","small_lympho","small_cells"],
+    conflict:["cd5","cd10","cyclind1","cd23","cd138"],
+    molecular_support:["myd88"],
+    molecular_conflict:["braf","ccnd1_r"],
+    desc:"SMZL/LPL spectrum; MYD88 L265P common in Waldenström." },
+  { name:"Hairy Cell Leukemia",
+    group:"Mature B-cell",
+    sites:["Bone Marrow","Spleen","Peripheral Blood"],
+    essential:["hairy_proj","annexin"],
+    supportive:["cd103","cd20","cd25","pax5","cd45","small_lympho","dba44","trap","reticulin","small_cells"],
+    conflict:["cd5","cd10","cyclind1","cd23"],
+    molecular_support:["braf"],
+    molecular_conflict:["myd88","ccnd1_r"],
+    desc:"BRAF V600E-driven CD103+/Annexin A1+ mature B-cell leukemia." },
+  { name:"Diffuse Large B-Cell Lymphoma (DLBCL)",
+    group:"Aggressive B-cell",
+    sites:["any"],
+    essential:["diffuse_large","cd20"],
+    supportive:["cd10","bcl6","mum1","bcl2","ki67_high","cmyc","pax5","cd45","p53ihc","large_cells","noncleaved"],
+    conflict:["tdt","cyclind1","cd15","cd30"],
+    molecular_support:["bcl6_r","ezh2"],
+    molecular_conflict:["myc_r"],
+    desc:"Most common aggressive lymphoma; large cells with broad B-cell phenotype." },
+  { name:"High-Grade B-Cell Lymphoma (DH/TH)",
+    group:"Aggressive B-cell",
+    sites:["any"],
+    essential:["diffuse_large","cd20"],
+    supportive:["cd10","bcl6","ki67","ki67_high","cmyc","pax5","cd45","p53ihc","bcl2","large_cells"],
+    conflict:["tdt","cyclind1","cd15"],
+    molecular_support:["myc_r","bcl2_r","bcl6_r","tp53"],
+    molecular_conflict:["braf","myd88","ccnd1_r"],
+    desc:"Double-hit / triple-hit: MYC + BCL2 and/or BCL6 rearrangement." },
+  { name:"Burkitt Lymphoma",
+    group:"Aggressive B-cell",
+    sites:["any"],
+    essential:["starry_sky","ki67"],
+    supportive:["diffuse_large","cd20","cd10","bcl6","cmyc","pax5","cd45","medium_cells","noncleaved"],
+    conflict:["cd5","bcl2","cyclind1","tdt","cd30"],
+    molecular_support:["myc_r"],
+    molecular_conflict:["bcl2_r","bcl6_r","braf","myd88"],
+    desc:"High-Ki67 starry-sky lymphoma with MYC translocation." },
+  { name:"Lymphoblastic Lymphoma (ALL/LBL)",
+    group:"Precursor neoplasm",
+    sites:["any"],
+    essential:["blastoid","tdt"],
+    supportive:["cd10","cd20","cd3","cd34","cd99","cd1a","pax5","cd45","diffuse_large","pas","small_cells"],
+    conflict:["cyclind1","reed_sternberg","cd23","cd138","mpo"],
+    molecular_support:["tp53"],
+    molecular_conflict:["ccnd1_r","braf","myd88"],
+    desc:"Precursor B- or T-cell neoplasm; TdT positive." },
+  { name:"Peripheral T-Cell Lymphoma, NOS",
+    group:"Mature T-cell",
+    sites:["any"],
+    essential:["cd3"],
+    supportive:["tcell_rich","cd5","cd30","cd4","cd43","cd45","mixed_small_large"],
+    conflict:["cd20","cd79a","cyclind1","cd15","tdt"],
+    molecular_support:["tp53"],
+    molecular_conflict:["ccnd1_r","braf","myd88","bcl2_r"],
+    desc:"Heterogeneous mature T-cell lymphoma lacking specific features." },
+  { name:"Angioimmunoblastic T-Cell Lymphoma (AITL)",
+    group:"Mature T-cell",
+    sites:["Lymph Node"],
+    essential:["tcell_rich","cd10"],
+    supportive:["bcl6","cd3","cd4","pd1","cxcl13","cd45","small_lympho","mixed_small_large"],
+    conflict:["cd20","cd15","cyclind1"],
+    molecular_support:["idh2","rhoa","tet2"],
+    molecular_conflict:["bcl2_r","malt1_r"],
+    desc:"TFH-derived lymphoma: CD10+/BCL6+ T-helper phenotype." },
+  { name:"Anaplastic Large Cell Lymphoma, ALK+",
+    group:"Mature T-cell",
+    sites:["any"],
+    essential:["hallmark_cells","cd30"],
+    supportive:["alk","cd3","tia1","granzyme_b","ema","cd45","tcell_rich","large_cells","multinucleated"],
+    conflict:["cd20","cd15","cd5","ebv"],
+    molecular_support:["alk_r","dusp22","tp63_r"],
+    molecular_conflict:["bcl2_r","ccnd1_r","braf"],
+    desc:"CD30+/ALK+ T-cell lymphoma with hallmark cells." },
+  { name:"Extranodal NK/T-Cell Lymphoma",
+    group:"NK/T-cell",
+    sites:["Nasal Cavity","Skin","Lung","GI Tract","any"],
+    essential:["ebv","angiodestruction","cd56"],
+    supportive:["necrosis","cd3","tia1","granzyme_b","cd45"],
+    conflict:["cd20","cd15","cyclind1"],
+    molecular_support:["tp53"],
+    molecular_conflict:["bcl2_r","ccnd1_r","malt1_r"],
+    desc:"EBV-associated, angiocentric cytotoxic NK/T-cell lymphoma." },
+  { name:"Mycosis Fungoides",
+    group:"Mature T-cell",
+    sites:["Skin"],
+    essential:["pautrier","cerebriform"],
+    supportive:["cd3","cd5","cd4","cd45"],
+    conflict:["cd20","cd15","cyclind1","ebv","cd8"],
+    molecular_support:[],
+    molecular_conflict:["bcl2_r","ccnd1_r","malt1_r"],
+    desc:"Epidermotropic cutaneous T-cell lymphoma." },
+  { name:"Nodular Lymphocyte-Predominant Hodgkin (NLPHL)",
+    group:"Hodgkin",
+    sites:["Lymph Node"],
+    essential:["popcorn_cells","cd20"],
+    supportive:["tcell_rich","foll_growth","pax5","cd45"],
+    conflict:["cd15","cd30","cd10","cd3"],
+    molecular_support:[],
+    molecular_conflict:["ccnd1_r","bcl2_r"],
+    desc:"L&H (popcorn) cells, CD20+/CD15−/CD30− nodular variant of Hodgkin." },
+  { name:"Classical Hodgkin Lymphoma",
+    group:"Hodgkin",
+    sites:["Lymph Node","Mediastinum","Bone Marrow"],
+    essential:["reed_sternberg","cd30","cd15"],
+    supportive:["fibrosis","eosinophils","lacunar_cells","cd20","pax5","ebv","tcell_rich","multinucleated","reticulin"],
+    conflict:["cd3","cd5","cyclind1","sox11","cd23","cd45"],
+    molecular_support:["tp53"],
+    molecular_conflict:["ccnd1_r","bcl2_r","braf","myd88"],
+    desc:"RS cells: CD30+/CD15+ in a mixed inflammatory background." }
+];
+
+/* Non-neoplastic and non-lymphoma mimics, shown only for the selected organ.
+   Same scoring engine: essential = defining (w2), supportive = w1,
+   conflict = feature arguing against if present. */
+
+const MIMICS = [
+  { name:"Reactive Follicular Hyperplasia",
+    group:"Mimic / Reactive",
+    sites:["Lymph Node"],
+    essential:["germinal_polarity","foll_growth"],
+    supportive:["cd20","cd10","bcl6","pax5","mixed_small_large"],
+    conflict:["cyclind1","sox11","small_lympho"],
+    molecular_support:[], molecular_conflict:[],
+    desc:"Benign follicle proliferation preserving germinal-center polarity.",
+    mimic:true },
+  { name:"Infectious Mononucleosis (EBV)",
+    group:"Mimic / Reactive",
+    sites:["Lymph Node","Peripheral Blood","Bone Marrow"],
+    essential:["reed_sternberg","immunoblasts_mixed"],
+    supportive:["cd20","ebv","cd30","cd45","tcell_rich"],
+    conflict:["cd15","cyclind1","sox11"],
+    molecular_support:[], molecular_conflict:[],
+    desc:"EBV immunoblastic proliferation — the classic Hodgkin mimic.",
+    mimic:true },
+  { name:"Kikuchi-Fujimoto Disease",
+    group:"Mimic / Reactive",
+    sites:["Lymph Node"],
+    essential:["necrotizing_adenitis"],
+    supportive:["tcell_rich","cd3"],
+    conflict:["cd20","cd15","cd30","reed_sternberg"],
+    molecular_support:[], molecular_conflict:[],
+    desc:"Self-limited histiocytic necrotizing lymphadenitis.",
+    mimic:true },
+  { name:"Rosai-Dorfman Disease",
+    group:"Mimic / Reactive",
+    sites:["Lymph Node","Skin"],
+    essential:["sinus_histio"],
+    supportive:["tcell_rich","plasma_cells_dense","s100"],
+    conflict:["cd20","reed_sternberg","cyclind1"],
+    molecular_support:[], molecular_conflict:[],
+    desc:"S100+ histiocytosis with emperipolesis (sinus histiocytosis).",
+    mimic:true },
+  { name:"Castleman Disease (hyaline-vascular)",
+    group:"Mimic / Reactive",
+    sites:["Lymph Node","Mediastinum"],
+    essential:["hyaline_follicles"],
+    supportive:["cd20","small_cells","fibrosis"],
+    conflict:["cd10","bcl6","diffuse_large","cd30","cd15"],
+    molecular_support:[], molecular_conflict:[],
+    desc:"Concentric 'onion-skin' mantle zones over regressed germinal centers.",
+    mimic:true },
+  { name:"Sarcoidosis",
+    group:"Mimic / Granulomatous",
+    sites:["Lymph Node","Mediastinum","Lung","Skin","Orbit","Liver"],
+    essential:["epithelioid_granulomas"],
+    supportive:["multinucleated","tcell_rich","fibrosis"],
+    conflict:["necrosis","angiodestruction","cd20","cd30"],
+    molecular_support:[], molecular_conflict:[],
+    desc:"Non-necrotizing epithelioid granulomas; no caseation or angioinvasion.",
+    mimic:true },
+  { name:"Tuberculous Lymphadenitis",
+    group:"Mimic / Granulomatous",
+    sites:["Lymph Node","Lung","Bone"],
+    essential:["epithelioid_granulomas","necrosis"],
+    supportive:["multinucleated","fibrosis"],
+    conflict:["cd20","cd30","angiodestruction"],
+    molecular_support:[], molecular_conflict:[],
+    desc:"Caseating granulomas; confirm with AFB and PCR.",
+    mimic:true },
+  { name:"IgG4-Related Disease",
+    group:"Mimic / Reactive",
+    sites:["Lymph Node","Thyroid","Orbit","Lung","GI Tract","Testis","Breast","Liver"],
+    essential:["plasma_cells_dense","fibrosis"],
+    supportive:["cd138","immunoblasts_mixed"],
+    conflict:["cyclind1","cd5","hairy_proj","starry_sky"],
+    molecular_support:[], molecular_conflict:[],
+    desc:"Fibroinflammatory disease with dense IgG4+ plasma cells.",
+    mimic:true },
+  { name:"Lymphocytoma Cutis (pseudolymphoma)",
+    group:"Mimic / Reactive",
+    sites:["Skin"],
+    essential:["germinal_polarity","foll_growth"],
+    supportive:["cd20","cd3","mixed_small_large"],
+    conflict:["cyclind1","cd23","pautrier"],
+    molecular_support:[], molecular_conflict:[],
+    desc:"Benign reactive dermal infiltrates mimicking cutaneous lymphoma.",
+    mimic:true },
+  { name:"Plasma Cell Myeloma / MGUS",
+    group:"Mimic / Other neoplasm",
+    sites:["Bone Marrow"],
+    essential:["plasma_cells_dense","cd138"],
+    supportive:["cd56","large_cells","ema"],
+    conflict:["cd20","cd5","cyclind1","cd3","cd45"],
+    molecular_support:["tp53"],
+    molecular_conflict:["ccnd1_r","braf"],
+    desc:"Clonal plasma-cell proliferation; correlate with serum protein studies.",
+    mimic:true },
+  { name:"Systemic Mastocytosis",
+    group:"Mimic / Other neoplasm",
+    sites:["Bone Marrow","Skin"],
+    essential:["tryp","giemsa"],
+    supportive:["hairy_proj","cd117","cd25"],
+    conflict:["cd20","cd5","mpo"],
+    molecular_support:["kit_m"], molecular_conflict:["braf","ccnd1_r"],
+    desc:"KIT-mutated mast-cell infiltrates; tryptase and Giemsa highlight.",
+    mimic:true },
+  { name:"Thymoma",
+    group:"Mimic / Other neoplasm",
+    sites:["Mediastinum"],
+    essential:["spindle_cells"],
+    supportive:["tcell_rich","mixed_small_large","cd1a"],
+    conflict:["cd20","cyclind1","reed_sternberg"],
+    molecular_support:[], molecular_conflict:[],
+    desc:"Epithelial thymoma with immature (CD1a+) T-cell component.",
+    mimic:true },
+  { name:"Granulomatosis with Polyangiitis (Wegener's)",
+    group:"Mimic / Vasculitis",
+    sites:["Nasal Cavity","Lung"],
+    essential:["angiodestruction","necrosis","epithelioid_granulomas"],
+    supportive:["tcell_rich","multinucleated"],
+    conflict:["ebv","cd56","cd20","cd30"],
+    molecular_support:[], molecular_conflict:[],
+    desc:"Necrotizing granulomatous vasculitis — the key NK/T-cell mimic.",
+    mimic:true },
+  { name:"Langerhans Cell Histiocytosis",
+    group:"Mimic / Other neoplasm",
+    sites:["Bone","Skin","Lung"],
+    essential:["eosinophils","multinucleated"],
+    supportive:["necrosis","cd1a","langerin","s100","mixed_small_large"],
+    conflict:["cd20","cd15","cyclind1"],
+    molecular_support:["braf"], molecular_conflict:[],
+    desc:"CD1a/S100+/Langerin+ Langerhans cells with abundant eosinophils.",
+    mimic:true },
+  { name:"Hashimoto Thyroiditis",
+    group:"Mimic / Autoimmune",
+    sites:["Thyroid"],
+    essential:["lympho_lesions","plasma_cells_dense"],
+    supportive:["small_cells","cd20","cd3"],
+    conflict:["cyclind1","cd5","sox11"],
+    molecular_support:[], molecular_conflict:[],
+    desc:"Autoimmune thyroiditis — the prime mimic of thyroid MALT lymphoma.",
+    mimic:true },
+  { name:"Lymphocytic (Reactive) Hepatitis",
+    group:"Mimic / Reactive",
+    sites:["Liver"],
+    essential:["tcell_rich","mixed_small_large"],
+    supportive:["cd3","small_cells"],
+    conflict:["cd20","diffuse_large","cyclind1"],
+    molecular_support:[], molecular_conflict:[],
+    desc:"Benign portal / peribiliary lymphoid infiltrates.",
+    mimic:true }
+];
+
+/* =============================== HELPERS =============================== */
+
+const $  = (sel) => document.querySelector(sel);
+const $$ = (sel) => Array.from(document.querySelectorAll(sel));
+
+const checkboxes = {};             // feature id -> checkbox element
+const featureLabel = {};           // feature id -> label text
+[MORPH, IHC, MOL, STAINS].forEach(list => list.forEach(f => { featureLabel[f.id] = f.label; }));
+
+function buildChecks(containerId, list){
+  const box = $(containerId);
+  list.forEach(f => {
+    const label = document.createElement("label");
+    const input = document.createElement("input");
+    input.type = "checkbox";
+    input.dataset.feature = f.id;
+    label.appendChild(input);
+    label.appendChild(document.createTextNode(" " + f.label));
+    box.appendChild(label);
+    checkboxes[f.id] = input;
+  });
+  box.addEventListener("change", updateCounts);
+}
+
+const ihcState = {};           // ihc feature id -> 'u' (untested) | 'p' (positive) | 'n' (negative)
+
+function buildIHC(){
+  const box = $("#ihc");
+  IHC.forEach(f => {
+    ihcState[f.id] = "u";
+    const row = document.createElement("div");
+    row.className = "row";
+    row.appendChild(Object.assign(document.createElement("span"), { className:"marker", textContent:f.label }));
+
+    const seg = document.createElement("div");
+    seg.className = "seg";
+    [["u","Untested"],["p","Positive"],["n","Negative"]].forEach(([v, t]) => {
+      const opt = document.createElement("label");
+      opt.className = "opt " + v;
+      const radio = document.createElement("input");
+      radio.type = "radio";
+      radio.name = f.id;
+      radio.value = v;
+      if (v === "u") radio.checked = true;
+      radio.addEventListener("change", () => {
+        ihcState[f.id] = v;
+        updateCounts();
+      });
+      opt.appendChild(radio);
+      opt.appendChild(Object.assign(document.createElement("span"), { textContent:t }));
+      seg.appendChild(opt);
+    });
+    row.appendChild(seg);
+    box.appendChild(row);
+  });
+}
+
+function setIHCState(id, state){
+  ihcState[id] = state;
+  $$('input[name="' + id + '"]').forEach(r => { r.checked = r.value === state; });
+}
+
+function updateCounts(){
+  let morph = 0, mol = 0, stain = 0, posC = 0, negC = 0;
+  Object.values(checkboxes).forEach(cb => {
+    if (!cb.checked) return;
+    if (CLIN_IDS.has(cb.dataset.feature)) return;
+    if (MORPH.some(f => f.id === cb.dataset.feature)) morph++;
+    else if (STAINS.some(f => f.id === cb.dataset.feature)) stain++;
+    else mol++;
+  });
+  IHC.forEach(f => {
+    if (ihcState[f.id] === "p") posC++;
+    else if (ihcState[f.id] === "n") negC++;
+  });
+  $("#morphCount").textContent = morph;
+  $("#molCount").textContent = mol;
+  $("#stainCount").textContent = stain;
+  $("#ihcCount").textContent = posC + " pos" + (negC ? " / " + negC + " neg" : "");
+}
+
+function selectedFeatures(){
+  const pos = [];
+  Object.values(checkboxes).forEach(cb => { if (cb.checked) pos.push(cb.dataset.feature); });
+  IHC.forEach(f => { if (ihcState[f.id] === "p") pos.push(f.id); });
+  return pos;
+}
+
+function negativeFeatures(){ return IHC.filter(f => ihcState[f.id] === "n").map(f => f.id); }
+
+function buildSites(){
+  const sel = $("#site");
+  SITES.forEach(s => {
+    const opt = document.createElement("option");
+    opt.value = s; opt.textContent = s;
+    sel.appendChild(opt);
+  });
+}
+
+/* ======================= CLINICAL CONTEXT ======================= */
+
+let sexSelVal = "u", tcSelVal = "", stageVal = "";
+const SEX_LABEL = { u:"Unknown", m:"Male", f:"Female" };
+const TC_LABEL = Object.fromEntries(CLIN_TC.map(f => [f.id, f.label]));
+
+function buildRadios(containerId, name, list, onChange){
+  const box = $(containerId);
+  list.forEach(f => {
+    const opt = document.createElement("label");
+    opt.className = "opt u";
+    const radio = document.createElement("input");
+    radio.type = "radio";
+    radio.name = name;
+    radio.value = f.id;
+    if (f.id === "u") radio.checked = true;
+    radio.addEventListener("change", () => { onChange(f.id); });
+    opt.appendChild(radio);
+    opt.appendChild(Object.assign(document.createElement("span"), { textContent:f.label }));
+    box.appendChild(opt);
+  });
+}
+
+function buildStage(){
+  const s = $("#stageSel");
+  s.appendChild(Object.assign(document.createElement("option"), { value:"", textContent:"Unknown" }));
+  ["I","II","III","IV","N/A"].forEach(st => {
+    s.appendChild(Object.assign(document.createElement("option"), { value:st, textContent:"Stage " + st }));
+  });
+  s.addEventListener("change", () => { stageVal = s.value; });
+}
+
+function resetClinical(){
+  sexSelVal = "u";
+  $$('input[name="sexsel"]').forEach(r => { r.checked = r.value === "u"; });
+  tcSelVal = "";
+  $$('input[name="tcsel"]').forEach(r => { r.checked = false; });
+  stageVal = ""; $("#stageSel").value = "";
+}
+
+/* =============================== SCENARIOS =============================== */
+
+const SCENARIOS = {
+  /* --- B-cell neoplasms (WHO 5th ed.) --- */
+  "Follicular lymphoma":  { sites:["Lymph Node"], features:["foll_growth","cleaved","small_cells","cb_0_5","cd10","bcl6","bcl2","cd20","pax5","cd45","bcl2_r"], negative:["cd5","cyclind1","sox11"] },
+  "CLL/SLL":              { sites:["Lymph Node","Peripheral Blood"], features:["small_lympho","cd5","cd23","lef1","cd20","trisomy12","ighv"], negative:["cyclind1","cd10","tdt"] },
+  "Mantle cell":          { sites:["Lymph Node","Peripheral Blood"], features:["small_lympho","mantle_pattern","cd5","cyclind1","sox11","ccnd1_r"], negative:["cd23","cd10"] },
+  "Mantle cell (blastoid)": { sites:["Lymph Node","Peripheral Blood"], features:["small_lympho","mantle_pattern","blastoid","pleomorphic","cd5","cyclind1","sox11","ccnd1_r"], negative:["cd23","cd10","tdt"] },
+  "MALT lymphoma":        { sites:["GI Tract"], features:["lympho_lesions","plasmacytoid","cd20","malt1_r","rc_hpylori","sg_gi"], negative:["cd5","cd10","cd23"] },
+  "LPL / Waldenstrom":    { sites:["Bone Marrow"], features:["plasmacytoid","dutcher","small_lympho","cd20","pax5","cd45","myd88","lb_mprotein","lb_hypergamma"], negative:["cd5","cd10","cd23","cd138"] },
+  "Hairy cell leukemia":  { sites:["Bone Marrow","Spleen"], features:["hairy_proj","cd103","annexin","cd20","cd25","pax5","cd45","dba44","trap","reticulin","braf"], negative:["cd5","cd10","cd23"] },
+  "DLBCL, NOS":           { sites:["Lymph Node","Mediastinum"], features:["diffuse_large","large_cells","noncleaved","cd20","cd10","bcl6","mum1","bcl2","ki67_high","pax5","cd45"], negative:["tdt","cyclind1","cd15"] },
+  "Double-hit HGBCL":     { sites:["Lymph Node","Bone Marrow"], features:["diffuse_large","noncleaved","cd20","cd10","bcl6","ki67","bcl2","cmyc","myc_r","bcl2_r","bcl6_r","p53ihc"], negative:["tdt","cyclind1","cd15"] },
+  "B-lymphoblastic LBL":  { sites:["Mediastinum","Bone Marrow"], features:["blastoid","diffuse_large","tdt","cd34","cd99","cd1a","cd10","cd20","pax5","cd45","pas"], negative:["cyclind1","cd138"] },
+  "Burkitt":              { sites:["Lymph Node"], features:["starry_sky","medium_cells","cd20","cd10","ki67","myc_r"], negative:["bcl2","cd5","tdt"] },
+  /* --- Hodgkin lymphomas --- */
+  "Classical Hodgkin":    { sites:["Lymph Node"], features:["reed_sternberg","lacunar_cells","fibrosis","eosinophils","cd30","cd15"], negative:["cd3","cd5","cyclind1"] },
+  "NLPHL":                { sites:["Lymph Node"], features:["popcorn_cells","foll_growth","tcell_rich","cd20","pax5","cd45"], negative:["cd15","cd30","cd10"] },
+  /* --- T/NK-cell neoplasms --- */
+  "AITL":                 { sites:["Lymph Node"], features:["tcell_rich","small_lympho","cd3","cd10","bcl6","cd4","pd1","cxcl13","rhoa","tet2"], negative:["cd20","cd15"] },
+  "ALCL, ALK+":           { sites:["Lymph Node","Skin"], features:["hallmark_cells","cd30","alk","cd3","tia1","granzyme_b","ema","cd45","alk_r"], negative:["cd20","cd15","cd5"] },
+  "ENKTL (nasal)":        { sites:["Nasal Cavity"], features:["angiodestruction","necrosis","ebv","cd56","cd3","tia1","granzyme_b","cd45","sg_nasal"], negative:["cd20","cd15"] },
+  "Mycosis fungoides":    { sites:["Skin"], features:["pautrier","cerebriform","cd3","cd5","cd4","cd45","sg_skin","sx_pruritus"], negative:["cd20","cd15","cd8"] },
+  "PTCL, NOS":            { sites:["Lymph Node","Skin"], features:["tcell_rich","mixed_small_large","cd3","cd4","cd43","cd45"], negative:["cd20","cd79a","cd15"] },
+  /* --- Myeloid / plasma-cell neoplasms (WHO entities to distinguish) --- */
+  "Systemic mastocytosis": { sites:["Bone Marrow","Skin"], features:["tryp","giemsa","cd117","cd25","kit_m","sg_splenomegaly"], negative:["cd20","cd5"] },
+  "Plasma cell myeloma":    { sites:["Bone Marrow"], features:["plasma_cells_dense","cd138","cd56","large_cells","ema","lb_mprotein","lb_hypergamma","sg_bone"], negative:["cd20","cd45"] }
+};
+
+function buildScenarios(){
+  const wrap = $("#scenarios");
+  Object.entries(SCENARIOS).forEach(([name, sc]) => {
+    const b = document.createElement("button");
+    b.className = "btn small";
+    b.textContent = name;
+    b.addEventListener("click", () => loadScenario(sc));
+    wrap.appendChild(b);
+  });
+}
+
+function loadScenario(sc){
+  resetAll(true);
+  $("#site").querySelectorAll("option").forEach(o => { o.selected = sc.sites.includes(o.value); });
+  Object.keys(checkboxes).forEach(id => { checkboxes[id].checked = (sc.features || []).includes(id); });
+  IHC.forEach(f => {
+    const st = (sc.negative || []).includes(f.id) ? "n"
+             : ((sc.features || []).includes(f.id) ? "p" : "u");
+    setIHCState(f.id, st);
+  });
+  updateCounts();
+}
+
+/* =============================== DIAGNOSIS =============================== */
+
+function runDiagnosis(){
+  const sites = $$("#site option").filter(o => o.selected).map(o => o.value);
+  if (sites.length === 0){ alert("Please select at least one site."); return; }
+  const pos = selectedFeatures();
+  if (tcSelVal) pos.push(tcSelVal);
+  const neg = negativeFeatures();
+
+  let scored = CONDITIONS.concat(MIMICS).map(cond => {
+    const siteOK = cond.sites.includes("any") || cond.sites.some(s => sites.includes(s));
+    if (!siteOK) return null;
+
+    const hitsE  = cond.essential.filter(f => pos.includes(f));
+    const hitsS  = cond.supportive.filter(f => pos.includes(f));
+    const hitsME = cond.molecular_support.filter(f => pos.includes(f));
+    const negE   = cond.essential.filter(f => neg.includes(f));
+    const negS   = cond.supportive.filter(f => neg.includes(f));
+    const negC   = cond.conflict.filter(f => neg.includes(f));
+    const hitsC  = cond.conflict.filter(f => pos.includes(f));
+    const hitsMC = cond.molecular_conflict.filter(f => pos.includes(f));
+
+    /* clinical rules: supporting findings add, conflicting findings penalize */
+    let scoreAdj = 0;
+    let clinInvoked = [];
+    const cr = CLINICAL_RULES[cond.name];
+    if (cr){
+      scoreAdj += cr.support.filter(f => pos.includes(f)).length;
+      clinInvoked = cr.conflict.filter(f => pos.includes(f));
+      scoreAdj -= clinInvoked.length * 2;
+    }
+
+    /* sex nudge */
+    if (sexSelVal !== "u"){
+      const pref = SEX_BIAS[cond.name];
+      if (pref === sexSelVal) scoreAdj += 0.4;
+      else if (pref) scoreAdj -= 0.4;
+    }
+
+    const maxScore = cond.essential.length * 2 + cond.supportive.length;
+    let score = hitsE.length * 2 + hitsS.length + hitsME.length
+              - (hitsC.length * 1.5 + hitsMC.length * 2)   // positive markers that argue against
+              - (negE.length * 3 + negS.length)            // explicitly negative expected markers
+              + negC.length                                // negative of a "conflict" marker supports it
+              + scoreAdj;
+    let percent = Math.max(0, Math.round(score / maxScore * 100));
+
+    /* entity-specific grade computed from grading variables */
+    let computedGrade = null;
+    const gs = GRADE_SETS[cond.name];
+    if (gs){
+      const gv = {};
+      gs.vars.forEach(id => { gv[id] = pos.includes(id); });
+      computedGrade = gs.compute(gv);
+      if (computedGrade && computedGrade.shift){
+        score += computedGrade.shift;
+        percent = Math.max(0, Math.round(score / maxScore * 100));
+      }
+    }
+
+    const invoked = [...hitsC, ...hitsMC, ...negE, ...negS, ...clinInvoked];  // penalized
+    const consistent = [...negC];                             // supports the diagnosis
+    const matched = [...hitsE, ...hitsS, ...hitsME].slice(0, 8); // cap display
+
+    return { cond, score, percent, hitsE, hitsS, negE, negS, negC, hitsC, hitsME, hitsMC, invoked, consistent, matched, computedGrade };
+  }).filter(Boolean);
+
+  // severe conflict can zero it out entirely
+  scored = scored.filter(r => r.score > 0 && r.percent > 0);
+  scored.sort((a, b) => b.score - a.score || b.percent - a.percent);
+
+  const wrap = $("#resultsWrap");
+  wrap.style.display = "block";
+  const out = $("#results");
+  out.innerHTML = "";
+
+  if (scored.length === 0){
+    out.innerHTML = '<div class="empty">No fit with the current profile. Try adding hallmark features or reviewing conflicts.</div>';
+    return;
+  }
+
+  const summary = document.createElement("div");
+  summary.className = "siteChips";
+  summary.appendChild(Object.assign(document.createElement("span"), { className:"chip", textContent:"Sites: "+sites.join(", ") }));
+  summary.appendChild(Object.assign(document.createElement("span"), { className:"chip", textContent:scored.length+" possible diagnosis"+(scored.length>1?"es":"") }));
+  const ageVal = $("#age").value.trim();
+  if (ageVal) summary.appendChild(Object.assign(document.createElement("span"), { className:"chip", textContent:"Age: "+ageVal }));
+  if (sexSelVal !== "u") summary.appendChild(Object.assign(document.createElement("span"), { className:"chip", textContent:"Sex: "+SEX_LABEL[sexSelVal] }));
+  if (stageVal){
+    const bSym = ["bx_fever","bx_sweats","bx_weightloss"].some(f => pos.includes(f));
+    summary.appendChild(Object.assign(document.createElement("span"), { className:"chip", textContent:"Stage: "+stageVal+(stageVal !== "N/A" && bSym ? "B" : "") }));
+  }
+  if (tcSelVal) summary.appendChild(Object.assign(document.createElement("span"), { className:"chip", textContent:"Course: "+TC_LABEL[tcSelVal] }));
+  out.appendChild(summary);
+
+  if (pos.includes("mpo")){
+    const w = document.createElement("div");
+    w.className = "chips";
+    w.style.marginTop = "6px";
+    w.appendChild(Object.assign(document.createElement("span"), { className:"chip warn", textContent:"MPO+ / myeloperoxidase+ — consider myeloid leukemia (AML), not lymphoma" }));
+    out.appendChild(w);
+  }
+  if (pos.includes("congo_red")){
+    const w = document.createElement("div");
+    w.className = "chips";
+    w.style.marginTop = "6px";
+    w.appendChild(Object.assign(document.createElement("span"), { className:"chip warn", textContent:"Congo red+ — amyloid; consider LPL/Waldenstr\u00f6m with amyloid, non-neoplastic deposits" }));
+    out.appendChild(w);
+  }
+
+  scored.forEach((r, i) => {
+    const card = document.createElement("div");
+    card.className = "resultCard" + (i === 0 ? " top" : "") + (r.cond.mimic ? " mimic" : "");
+
+    const head = document.createElement("div");
+    head.className = "resultHead";
+    const nm = document.createElement("span");
+    nm.className = "nm";
+    nm.innerHTML = (i === 0 ? "&mdash; " : "") + r.cond.name + ' <span class="rankTxt">(' + r.cond.group + ")</span>";
+    const pct = document.createElement("span");
+    pct.className = "pct";
+    pct.textContent = r.percent + "%";
+    head.appendChild(nm); head.appendChild(pct);
+    if (r.cond.mimic){
+      head.appendChild(Object.assign(document.createElement("span"), {
+        className:"chip warn", textContent:"Non-lymphoma mimic"
+      }));
+    }
+    card.appendChild(head);
+
+    const bar = document.createElement("div");
+    bar.className = "bar";
+    bar.innerHTML = "<span style='width:" + r.percent + "%'></span>";
+    card.appendChild(bar);
+
+    card.appendChild(Object.assign(document.createElement("div"), { className:"desc", textContent:r.cond.desc }));
+
+    if (r.computedGrade && r.computedGrade.label){
+      const gd = document.createElement("div");
+      gd.className = "chips";
+      gd.style.marginTop = "6px";
+      gd.appendChild(Object.assign(document.createElement("span"), { className:"chip good", textContent:"Grade: " + r.computedGrade.label }));
+      card.appendChild(gd);
+    }
+
+    if (r.matched.length){
+      card.appendChild(Object.assign(document.createElement("div"), { className:"lbl", textContent:"Evidence present" }));
+      const chips = document.createElement("div");
+      chips.className = "chips";
+      r.matched.forEach(id => chips.appendChild(Object.assign(document.createElement("span"), {
+        className:"chip good", textContent: featureLabel[id] || id
+      })));
+      card.appendChild(chips);
+    }
+
+    if (r.invoked.length){
+      card.appendChild(Object.assign(document.createElement("div"), { className:"lbl", textContent:"Arguments against (penalized)" }));
+      const chips = document.createElement("div");
+      chips.className = "chips";
+      r.invoked.forEach(id => chips.appendChild(Object.assign(document.createElement("span"), {
+        className:"chip bad", textContent: (r.negE.concat(r.negS).includes(id))
+          ? featureLabel[id] + " \u2212"
+          : (featureLabel[id] || id)
+      })));
+      card.appendChild(chips);
+    }
+
+    if (r.consistent.length){
+      card.appendChild(Object.assign(document.createElement("div"), { className:"lbl", textContent:"Consistent negative findings" }));
+      const chips = document.createElement("div");
+      chips.className = "chips";
+      r.consistent.forEach(id => chips.appendChild(Object.assign(document.createElement("span"), {
+        className:"chip good", textContent: featureLabel[id] + " \u2212"
+      })));
+      card.appendChild(chips);
+    }
+
+    // show the single most important missing marker for the top hit
+    if (i === 0 && r.cond.essential.some(f => !r.hitsE.includes(f))){
+      const missing = r.cond.essential.find(f => !r.hitsE.includes(f));
+      card.appendChild(Object.assign(document.createElement("div"), { className:"lbl", textContent:"Consider checking" }));
+      let m2 = document.createElement("div");
+      m2.className = "chips";
+      m2.appendChild(Object.assign(document.createElement("span"), { className:"chip warn", textContent: featureLabel[missing] + " status" }));
+      card.appendChild(m2);
+    }
+
+    out.appendChild(card);
+  });
+
+  $("#resultsWrap").scrollIntoView({ behavior:"smooth", block:"start" });
+}
+
+/* =============================== RESET =============================== */
+
+function resetAll(silent){
+  $("#age").value = "";
+  $$("#site option").forEach(o => o.selected = false);
+  Object.values(checkboxes).forEach(cb => cb.checked = false);
+  IHC.forEach(f => setIHCState(f.id, "u"));
+  resetClinical();
+  updateCounts();
+  if (!silent){
+    $("#resultsWrap").style.display = "none";
+    $("#results").innerHTML = "";
+  }
+}
+
+/* =============================== BOOT =============================== */
+
+buildSites();
+buildChecks("#morph", MORPH);
+buildIHC();
+buildChecks("#mol", MOL);
+buildChecks("#stain", STAINS);
+buildChecks("#clinSymptoms", CLIN_SYMPTOMS);
+buildChecks("#clinSigns", CLIN_SIGNS);
+buildChecks("#clinRisk", CLIN_RISK);
+buildChecks("#clinLab", CLIN_LAB);
+buildRadios("#sexSel", "sexsel", [{id:"u",label:"Unknown"},{id:"m",label:"Male"},{id:"f",label:"Female"}], v => { sexSelVal = v; });
+buildRadios("#tcSel", "tcsel", CLIN_TC, v => { tcSelVal = (tcSelVal === v ? "" : v); });
+buildStage();
+buildScenarios();
+
+$("#run").addEventListener("click", runDiagnosis);
+$("#reset").addEventListener("click", () => resetAll(false));
+document.addEventListener("keydown", e => { if (e.key === "Enter" && e.target.id === "age") runDiagnosis(); });
+</script>
+</body>
+</html>
